@@ -64,7 +64,7 @@ class Car_dataset(Dataset):
         images = [np.array(image), np.array(label)]
         
         if self.ifcoord:
-            xx,yy = np.meshgrid(np.linspace(-0.5,0.5,w), np.linspace(-0.5,0.5,h))
+            xx,yy = np.meshgrid(np.linspace(-0.5,0.5,self.w), np.linspace(-0.5,0.5,self.h))
             coord = np.concatenate([xx[np.newaxis,...], yy[np.newaxis,...]],0).astype('float32')
             images.append(coord)
 
@@ -76,12 +76,18 @@ class Car_dataset(Dataset):
         if self.randomCrop:
             images = self.RandomCrop(images)
 
-        if self.ifcoord:
-            images[2] = images[2][:, ::self.stride, ::self.stride]
-            
         images[0] = self.ImageNormalize(images[0])
-
-        return images[0], images[1], images[2]
+        images[1] = np.expand_dims(images[1], axis=0)
+        
+        image = torch.from_numpy(images[0])
+        label = torch.from_numpy(images[1]).long()
+        
+        if self.ifcoord:
+            coord = images[2][:, ::self.stride, ::self.stride]
+            coord = torch.from_numpy(coord)
+            return image, label, coord
+        else:
+            return image, label
         
 
     def __len__(self):
