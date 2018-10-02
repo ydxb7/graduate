@@ -6,6 +6,7 @@ class UNet_check(nn.Module):
     def __init__(self, in_channels=3, n_classes=2):
         super(UNet_check, self).__init__()
 
+        # 572->568
         down1 = []
         down1.append(nn.Conv2d(in_channels, 64, kernel_size=3, padding=0))
         down1.append(nn.ReLU())
@@ -15,6 +16,7 @@ class UNet_check(nn.Module):
         down1.append(nn.BatchNorm2d(64))
         self.down1 = nn.Sequential(*down1)
         
+        # 284->280
         down2 = []
         down2.append(nn.Conv2d(64, 128, kernel_size=3, padding=0))
         down2.append(nn.ReLU())
@@ -24,6 +26,7 @@ class UNet_check(nn.Module):
         down2.append(nn.BatchNorm2d(128))
         self.down2 = nn.Sequential(*down2)
         
+        # 140->136
         down3 = []
         down3.append(nn.Conv2d(128, 256, kernel_size=3, padding=0))
         down3.append(nn.ReLU())
@@ -33,6 +36,7 @@ class UNet_check(nn.Module):
         down3.append(nn.BatchNorm2d(256))
         self.down3 = nn.Sequential(*down3)
         
+        # 68->64
         down4 = []
         down4.append(nn.Conv2d(256, 512, kernel_size=3, padding=0))
         down4.append(nn.ReLU())
@@ -93,49 +97,37 @@ class UNet_check(nn.Module):
         
         self.last = nn.Conv2d(64, n_classes, kernel_size=1)
 
-    def center_crop(self, layer, target_size):
-        _, _, layer_height, layer_width = layer.size()
-        diff_y = (layer_height - target_size[0]) // 2
-        diff_x = (layer_width - target_size[1]) // 2
-        return layer[:, :, diff_y:(diff_y + target_size[0]), diff_x:(diff_x + target_size[1])]
-
-
     def forward(self, x):
-        down1 = self.down1(x)
-        x = F.avg_pool2d(down1, 2)
+        down1 = self.down1(x) # 568
+        x = F.max_pool2d(down1, kernel_size=2, stride=2)
         
-        down2 = self.down2(x)
-        x = F.avg_pool2d(down2, 2)
+        down2 = self.down2(x) # 280
+        x = F.max_pool2d(down2, kernel_size=2, stride=2)
         
-        down3 = self.down3(x)
-        x = F.avg_pool2d(down3, 2)
+        down3 = self.down3(x) # 136
+        x = F.max_pool2d(down3, kernel_size=2, stride=2)
         
-        down4 = self.down4(x)
-        x = F.avg_pool2d(down4, 2)
+        down4 = self.down4(x) # 64
+        x = F.max_pool2d(down4, kernel_size=2, stride=2)
         
-        x = self.down5(x)
+        x = self.down5(x) # 28
         
-        x = self.up4_x(x)
-        crop4 = self.center_crop(down4, x.shape[2:])
-        x = torch.cat([x, crop4], 1)
-        x = self.up4(x)
+        x = self.up4_x(x) # 56
+        down4_crop = down4[:, :, 4:-4, 4:-4] # 64->56
+        x = self.up4(torch.cat([down4_crop, x], 1)) # 52
         
-        x = self.up3_x(x)
-        crop3 = self.center_crop(down3, x.shape[2:])
-        x = torch.cat([x, crop3], 1)
-        x = self.up3(x)
+        x = self.up3_x(x) # 104
+        down3_crop = down3[:, :, 16:-16, 16:-16] # 136->104
+        x = self.up3(torch.cat([down3_crop, x], 1)) # 100
         
-        x = self.up2_x(x)
-        crop2 = self.center_crop(down2, x.shape[2:])
-        x = torch.cat([x, crop2], 1)
-        x = self.up2(x)
+        x = self.up2_x(x) # 200
+        down2_crop = down2[:, :, 40:-40, 40:-40] # 280->200
+        x = self.up2(torch.cat([down2_crop, x], 1)) # 196
         
-        x = self.up1_x(x)
-        crop1 = self.center_crop(down1, x.shape[2:])
-        x = torch.cat([x, crop1], 1)
-        x = self.up1(x)
+        x = self.up1_x(x) # 392
+        down1_crop = down1[:, :, 88:-88, 88:-88] # 568->392
+        x = self.up1(torch.cat([down1_crop, x], 1)) # 388
         
         x = self.last(x)
     
         return x
-
